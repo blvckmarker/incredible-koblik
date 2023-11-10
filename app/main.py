@@ -8,6 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from typing import Annotated, Any, Callable, TypeVar
 
+from app.models import *
+
 
 nums = list(range(10000))
 T = TypeVar('T')
@@ -35,8 +37,11 @@ async def index(request: Request):
 async def upload(request: Request, file: Annotated[bytes, File()]):
     if (validate_file(file)):
         try:
+            remote = RemoteKoblikModel(file)
+            result = remote.execute()
+
             return templates.TemplateResponse('index.html',
-                                              {'request': request, 'output': file.decode(), 'success': 1})
+                                              {'request': request, 'output': result, 'success': 1})
         except Exception as ex:
             print(ex)
             return templates.TemplateResponse('index.html', {'request': request, 'output': 'Oops, some errors was occurred', 'success': 0})
