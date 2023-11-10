@@ -20,7 +20,7 @@ span {
 
 @font-face {
     font-family: JetBrainsMed;
-    src: url('fonts/JetBrainsMono-Medium.ttf');
+    src: url('../static/fonts//JetBrainsMono-Medium.ttf');
 }
 
 .header {

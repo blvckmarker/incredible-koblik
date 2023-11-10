@@ -1,13 +1,25 @@
-from fastapi import FastAPI, Path, Request, status
-from typing import Any, Callable, TypeVar
-from contexts import *
-from models import *
-from dtomodels import *
+import hashlib
+import os
+import random
+import zipfile
+from fastapi import FastAPI, File, Path, Request, status, UploadFile
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from typing import Annotated, Any, Callable, TypeVar
+from app.contexts import *
+from app.models import *
+from app.dtomodels import *
 
 
+nums = list(range(10000))
 T = TypeVar('T')
 context = PlayerContext()
+
 app = FastAPI()
+app.mount('/static', StaticFiles(directory='static'), name='static')
+
+templates = Jinja2Templates(directory='Templates')
 
 
 def first(src: list[T], cond: Callable[[T], bool]) -> T | None:
@@ -18,19 +30,31 @@ def first(src: list[T], cond: Callable[[T], bool]) -> T | None:
     return None
 
 
-@app.get('/players/{player_id}')
-async def get_players(player_id: int):
-    try_find = first(context.Players, lambda player: player.id == player_id)
-    if (try_find):
-        return try_find
-
-    return "OOps"
+@app.get('/', response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse('index.html', {'request': request})
 
 
-@app.post('/players/add')
-async def add_player(player: DtoPlayer):
-    context.Players.append(PlayerModel(
-        context.last_id + 1, player.name, player.price, player.desc))
-    context.last_id += 1
+@app.post('/upload', response_class=HTMLResponse)
+async def upload(request: Request, file: Annotated[bytes, File()]):
+    if (validate_file(file)):
+        try:
+            return templates.TemplateResponse('index.html',
+                                              {'request': request, 'output': file.decode(), 'success': 1})
+        except Exception as ex:
+            print(ex)
+            return templates.TemplateResponse('index.html', {'request': request, 'output': 'Oops, some errors was occurred', 'success': 0})
 
-    return status.HTTP_201_CREATED
+    else:
+        return templates.TemplateResponse('index.html',
+                                          {'request': request, 'output': 'Only .zip|.rar files are allowed', 'success': 0})
+
+
+def validate_file(file: bytes):
+    rand_name = hashlib.md5(str(random.choice(nums)).encode()).hexdigest()
+    open(rand_name, 'wb').write(file)
+
+    print(rand_name)
+    zipped = zipfile.is_zipfile(rand_name)
+    os.remove(rand_name)
+    return zipped
